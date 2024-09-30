@@ -68,7 +68,6 @@ def point_guided_deformation(image, source_pts, target_pts, alpha=1.0, eps=1e-8)
     # 使用纯径向函数的方式
     warping_params_x = np.linalg.solve(target_pts_weight, source_pts[:, 0])
     warping_params_y = np.linalg.solve(target_pts_weight, source_pts[:, 1])
-    print(f"shape of warping parameters is {np.shape(warping_params_x)}")
     # input(f"Warping Parameters is \n{warping_params_x}, {warping_params_y}")
 
     # 对warping后的图像每个像素进行反向遍历
@@ -78,13 +77,15 @@ def point_guided_deformation(image, source_pts, target_pts, alpha=1.0, eps=1e-8)
             curr_pt_dist = cdist([[w_index, h_index]], target_pts)
             curr_pt_weight = rbf_kernel(curr_pt_dist, eps, alpha)
 
-            origin_x = np.dot(curr_pt_weight, warping_params_x).astype(int)
             origin_y = np.dot(curr_pt_weight, warping_params_y).astype(int)
+            origin_x = np.dot(curr_pt_weight, warping_params_x).astype(int)
             if (origin_x in range(w)) and (origin_y in range(h)):
                 print(f"Original coordinate for ({h_index, w_index})/{np.shape(image)[:2]} is ({origin_y, origin_x})")
                 warped_image[h_index, w_index] = image[origin_y, origin_x]
             else:
                 print(f"Original coordinate for ({h_index, w_index})/{np.shape(image)[:2]} is out of range")
+    """
+
 
     """
     # 添加一阶多项式项
@@ -114,7 +115,50 @@ def point_guided_deformation(image, source_pts, target_pts, alpha=1.0, eps=1e-8)
                 warped_image[h_index, w_index] = image[origin_y, origin_x]
             else:
                 print(f"Original coordinate for ({h_index, w_index})/{np.shape(image)[:2]} is out of range")
+    """
  
+
+    """
+    # 使用batch来实现更高效的计算方式
+    """
+    # 可以测试一下最小二乘方法来求解这个欠定方程有什么区别？
+    polyno = np.hstack(( target_pts, np.ones((target_pts.shape[0], 1)) ))   # 添加x, y, 1项
+    bottom_matrix = np.hstack(( np.transpose(polyno), np.ones((3, 3)) ))
+    target_pts_weight = np.hstack([target_pts_weight, polyno])
+    target_pts_weight = np.vstack([target_pts_weight, bottom_matrix])
+
+    goal_x = np.hstack([source_pts[:, 0], np.zeros(3)])
+    goal_y = np.hstack([source_pts[:, 1], np.zeros(3)])
+    warping_params_x = np.linalg.solve(target_pts_weight, goal_x)
+    warping_params_y = np.linalg.solve(target_pts_weight, goal_y)
+
+    # 预计算所有点的坐标
+    mesh_w, mesh_h = np.meshgrid(np.arange(w), np.arange(h))
+    points = np.vstack([mesh_w.ravel(), mesh_h.ravel()]).T  # (w*h, 2)
+
+    # 计算所有点到目标点的距离
+    all_distances = cdist(points, target_pts)  # (w*h, n_targets)
+    # 计算权重
+    all_weights = rbf_kernel(all_distances, eps, alpha)  # (w*h, n_targets)
+    # 将权重与坐标结合
+    all_weights = np.hstack([all_weights, points, np.ones((points.shape[0], 1))])  # (w*h, n_targets + 3)
+
+    # 计算原始坐标
+    origin_y = np.dot(all_weights, warping_params_y).astype(int)
+    origin_x = np.dot(all_weights, warping_params_x).astype(int)
+
+    # 执行边界检查
+    valid_indices = (origin_x >= 0) & (origin_x < w) & (origin_y >= 0) & (origin_y < h)
+
+    # 应用有效的坐标
+    for idx in range(points.shape[0]):
+        if valid_indices[idx]:
+            w_index, h_index = points[idx]
+            # print(f"Original coordinate for ({h_index, w_index})/{np.shape(image)[:2]} is ({origin_y[idx], origin_x[idx]})")
+            warped_image[h_index, w_index] = image[origin_y[idx], origin_x[idx]]
+        else:
+            pass
+            # print(f"Original coordinate for ({h_index, w_index})/{np.shape(image)[:2]} is out of range")
     return warped_image
 
 
@@ -122,9 +166,10 @@ def rbf_kernel(distance, epsilon, alpha):
     """
     Radial Basis Function (RBF) kernel for calculating weights.
     """
-    # return np.exp(-(distance ** 2) / (2 * (epsilon ** 2))) * alpha
-    # return np.exp(-(distance ** 2)*1e-4) * alpha
+    # return np.exp(-(distance ** 2) / (epsilon ** 2))
     # return np.where(distance != 0, (distance**2) * log(distance+epsilon), 0)
+    # return (distance**2+c**2)**alpha
+    # return np.log((t**2+c**2)**0.5)
     return (distance**2) * np.log(distance+epsilon)
 
 
