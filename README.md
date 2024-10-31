@@ -8,6 +8,7 @@ Author: SA23168040
 
 ## List
 
-1. [Image Warping](./01_ImageWarping/README.md) 
-2. ...
+1. [Image Warping](./01_ImageWarping/README.md) 2024-09-30
+2. [Poison Edit and Pixel2Pixel](./02_DIPwithPyTorch/README.md) 2024-10-31
+3. 
 
