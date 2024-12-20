@@ -11,5 +11,6 @@ Author: SA23168040
 1. [Image Warping](./01_ImageWarping/README.md) 2024-09-30
 2. [Poison Edit and Pixel2Pixel](./02_DIPwithPyTorch/README.md) 2024-10-31
 3. [Improved Pixel2Pixel and AutoDragGAN](./03_PlayWithGANs/README.md) 2024-11-30
-4. 
+4. [3D Gaussian Splattering](./04_3DGS/pytorch/README.md) 2024-12-20
+5. Presentation 2024-12-30
 
